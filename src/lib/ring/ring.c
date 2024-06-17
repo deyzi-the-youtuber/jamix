@@ -1,0 +1,36 @@
+#include <jamix/mem.h>
+#include <jamix/errno.h>
+#include <jamix/printk.h>
+#include <lib/ring.h>
+#include <stdint.h>
+
+int ring_buffer_init(struct ring_buffer * ring, size_t buffer_size)
+{
+  ring->head = 0;
+  ring->tail = 0;
+  ring->size = buffer_size;
+  ring->buffer = (uint8_t *)malloc(ring->size);
+  if(!ring->buffer)
+    return -ENOMEM;
+  return 0;
+}
+
+int ring_buffer_write(struct ring_buffer * ring, uint8_t ch)
+{
+  if(ring->tail > ring->size)
+    ring->tail = 0; 
+  ring->buffer[ring->tail++] = ch;
+  return ring->tail;
+}
+
+int ring_buffer_read(struct ring_buffer * ring, uint8_t * buf, int len)
+{
+  if(ring->head > ring->size)
+    ring->head = 0;
+  for(int i = 0; i < len; i++)
+  {
+    *buf = ring->buffer[ring->head++];
+    buf++;
+  }
+  return ring->head;
+}
