@@ -44,8 +44,7 @@ iso:
 
 qemu:
 	@qemu-system-x86_64 \
-	-bios /usr/share/qemu/OVMF.fd
 	-cdrom $(iso_objout) \
 	-m 2G \
 	-no-reboot \
-	-d int
+	-serial stdio

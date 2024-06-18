@@ -27,7 +27,7 @@ struct task_struct * create_kernel_task(char * name, uintptr_t addr)
   struct task_struct * p = task_struct_alloc();
   memset(p, 0, sizeof(struct task_struct));
   if(!p)
-    return PTR_ERR(-ENOMEM);
+    return NULL;
   /* initialize basic entries */
   p->magic  = JAMIX_TASKING_MAGIC;
   p->state  = TASK_STATE_READY;
@@ -37,15 +37,16 @@ struct task_struct * create_kernel_task(char * name, uintptr_t addr)
   /* truncate name if needed */
   p->name   = name;
   /* set time quantum and other things */
-  p->time_quantum = 10;
+  p->time_quantum = 3;
   p->cpu_ticks = p->time_quantum;
   /* now, onto the more lower level things.. */
   p->stack  = (uint64_t *)malloc(4096); /* allocate 4KiB of stack memory */
-if(!p->stack)
+  if(!p->stack)
   {
     free(p);
-    return PTR_ERR(-ENOMEM);
+    return NULL;
   }
+  memset(p->stack, 0, 4096);
   /*
    *  To make the kernel task actually work, we need to push
    *  the return address (entry point) of the task into the
@@ -79,14 +80,18 @@ if(!p->stack)
    *
    *
    */
-  *--p->stack = addr;  /* RIP */
-  *--p->stack = 0;     /* RAX */
-  *--p->stack = 0;     /* RBX */
-  *--p->stack = 0;     /* RCX */
-  *--p->stack = 0;     /* RDX */
-  *--p->stack = 0;     /* RBP */
-  *--p->stack = 0;     /* RDI */
-  *--p->stack = 0;     /* RSI */
+
+#define STACK_PUSH(b) *--p->stack = b
+
+  /* stack needs to be aligned */
+  p->stack -= 16;
+  STACK_PUSH(addr);    /* RIP */
+  STACK_PUSH(0);                  /* RAX */
+  STACK_PUSH(0);                  /* RBX */
+  STACK_PUSH(0);                  /* RCX */
+  STACK_PUSH(0);                  /* RDX */
+  STACK_PUSH(0);                  /* RDI */
+  STACK_PUSH(0);                  /* RSI */
 
   p->ctx->rsp = (uint64_t)(p->stack);
   p->ctx->rbp = p->ctx->rsp;

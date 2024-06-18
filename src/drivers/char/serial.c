@@ -83,3 +83,14 @@ int serial_write(int port, const char str[], size_t sz)
   }
   return 0;
 }
+
+void debug(const char * fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  char * buf = (char *)malloc(256);
+  vsprintf(buf, (char *)fmt, ap);
+  va_end(ap);
+  serial_write(0, buf, strlen(buf));
+  free(buf);
+}

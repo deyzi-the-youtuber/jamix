@@ -2,6 +2,7 @@
 #include <arch/ops.h>
 #include <jamix/console.h>
 #include <jamix/printk.h>
+#include <jamix/process.h>
 #include <stdint.h>
 #include "pic.h"
 
@@ -76,8 +77,18 @@ void interrupt_handler(struct interrupt_frame * frame)
   {
     if (exception_handler(frame) < 0)
     {
+      critical_enter();
       if(is_console_enabled())
       {
+        if(sched_enabled())
+        {
+          printk("PID: %d (%s)\n", get_current_task()->pid, get_current_task()->name);
+          sched_enable_set(false);
+        }
+        /*
+          * TODO: Fix this interrupt frame junk. It's all in the wrong order
+          *
+          */
         printk("RIP: 0x%016x EFLAGS: 0x%08x: RSP: 0x%016x\n", frame->rip, frame->rflags, frame->userrsp);
         printk("RAX: 0x%016x RBX: 0x%016x RCX: 0x%016x\n", frame->rax, frame->rbx, frame->rcx);
         printk("RDX: 0x%016x RDI: 0x%016x RSI: 0x%016x\n", frame->rdx, frame->rdi, frame->rsi);
@@ -87,7 +98,6 @@ void interrupt_handler(struct interrupt_frame * frame)
         printk("SS: 0x%04x CS: 0x%04x ERR: 0x%08x\n", frame->ss, frame->cs, frame->error_code);
         panic("Fatal exception: 0x%02x\n", frame->intr);
       }
-      critical_enter();
       for(;;)
         asm volatile("hlt");
     }

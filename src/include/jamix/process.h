@@ -40,8 +40,12 @@ struct task_struct
 
 struct task_struct * create_kernel_task(char * name, uintptr_t addr);
 void task_release(struct task_struct * p);
+
 struct task_struct * get_current_task(void);
+
+void schedule(void);
 bool sched_enabled(void);
-void sched_set(bool status);
+void sched_resched_set(bool status);
+void sched_enable_set(bool status);
 
 #endif

@@ -17,11 +17,11 @@ void panic(char * format, ...)
   vprintf(strcat("Kernel Panic - ", format), ap);
   va_end(ap);
   die();
-  __builtin_unreachable();
+  unreachable;
 }
 
 inline void panic_crit(void)
 {
   die();
-  __builtin_unreachable();
+  unreachable;
 }

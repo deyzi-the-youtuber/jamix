@@ -10,79 +10,60 @@
 #include <sys/types.h>
 #include <stdint.h>
 
-/* The kernel task does the scheduling for us */
+/*The kernel task does the scheduling for us */
 struct task_struct * kernel_task;
 struct task_struct * current_task;
 
-bool resched_needed = false;
 bool is_sched_enabled = false;
 
-static void context_switch(void);
+void task_thing(void);
+void sched_add_queue(struct task_struct * p);
+extern void context_switch(struct task_struct * c, uint64_t next_esp);
+extern void sched_task_init(uint64_t esp);
 
 bool sched_enabled(void)
 {
   return is_sched_enabled;
 }
 
-void sched_set(bool status)
+void sched_enable_set(bool status)
 {
-  resched_needed = status;
+  is_sched_enabled = status;
 }
 
-static void scheduler_task(void)
+void schedule(void)
 {
-  printk("Scheduler task created, time to expand...\n");
-  is_sched_enabled = true;
-  for(;;)
+  if(current_task->cpu_ticks)
   {
-    if(resched_needed == true)
-    {
-      context_switch();
-    }
+    current_task->cpu_ticks--;
+    return;
   }
+  struct task_struct * new_task = current_task->next;
+  struct task_struct * old_task = current_task;
+  while(new_task->state != TASK_STATE_READY)
+  {
+    new_task = new_task->next;
+  }
+  debug("Task name: %s, Task RSP: 0x%016x\n", new_task->name, new_task->ctx->rsp);
+  current_task = new_task;
+  context_switch(old_task, new_task->ctx->rsp);
 }
 
-static void context_switch(void)
+void task_thing(void)
 {
-  critical_enter();
-  /* save task state */
-  asm volatile("push %rax");
-  asm volatile("push %rbx");
-  asm volatile("push %rcx");
-  asm volatile("push %rdx");
-  asm volatile("push %rbp");
-  asm volatile("push %rdi");
-  asm volatile("push %rsi");
-  asm volatile("mov %%rsp, %%rax" : "=a"(current_task->ctx->rsp));
-  current_task = current_task->next;
-  asm volatile("mov %%rax, %%rsp" :: "a"(current_task->ctx->rsp));
-  asm volatile("pop %rsi");
-  asm volatile("pop %rdi");
-  asm volatile("pop %rbp");
-  asm volatile("pop %rdx");
-  asm volatile("pop %rcx");
-  asm volatile("pop %rbx");
-  asm volatile("pop %rax");
-  critical_exit();
-  asm volatile("ret");
-  unreachable;
+  is_sched_enabled = true;
+  printk("hi");
+  for(;;);
 }
 
-static void sched_exec(void)
+void sched_add_queue(struct task_struct * p)
 {
   critical_enter();
-  /* load task stack, and task registers */
-  asm volatile("mov %%rax, %%rsp" :: "a"(current_task->ctx->rsp));
-  asm volatile("pop %rsi");
-  asm volatile("pop %rdi");
-  asm volatile("pop %rbp");
-  asm volatile("pop %rdx");
-  asm volatile("pop %rcx");
-  asm volatile("pop %rbx");
-  asm volatile("pop %rax");
+  p->prev = current_task;
+  p->next = current_task->next;
+  p->next->prev = p;
+  current_task->next = p;
   critical_exit();
-  asm volatile("ret");
-  unreachable;
 }
 
 struct task_struct * get_current_task(void)
@@ -92,14 +73,13 @@ struct task_struct * get_current_task(void)
 
 void sched_init(void)
 {
-  kernel_task = create_kernel_task("scheduler", (uintptr_t)scheduler_task);
+  kernel_task = create_kernel_task("task", (uintptr_t)task_thing);
   if(!kernel_task)
-    panic("failed to create scheduler task: %d\n", kernel_task);
+    panic("failed to create task\n");
   /* make it the only one */
   kernel_task->next = kernel_task;
   kernel_task->prev = kernel_task;
   current_task = kernel_task;
-  sched_exec();
-  panic("bug: shouldn't have returned!\n");
+  sched_task_init(current_task->ctx->rsp);
   unreachable;
 }

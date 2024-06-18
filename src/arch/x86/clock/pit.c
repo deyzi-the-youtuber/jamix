@@ -62,15 +62,7 @@ void timer_irq(struct interrupt_frame * frame)
   jiffies++;
   if(sched_enabled())
   {
-    struct task_struct * c = get_current_task();
-    if(c->cpu_ticks)
-    {
-      c->cpu_ticks--;
-    }
-    else
-    {
-      sched_set(true);
-    }
+    schedule();
   }
   check_callbacks();
 }
