@@ -73,7 +73,7 @@ struct task_struct * create_kernel_task(char name[], uintptr_t addr)
     return NULL;
   }
   p->stack_top = (uintptr_t)p->rsp + TASK_STACK_SIZE;
-  stack = p->stack_top;
+  stack = (uintptr_t *)p->stack_top;
 
   /*
    *  To make the kernel task actually work, we need to push
@@ -132,7 +132,7 @@ struct task_struct * create_kernel_task(char name[], uintptr_t addr)
   STACK_PUSH(0);                            /* R13  */
   STACK_PUSH(0);                            /* R14  */
   STACK_PUSH(0);                            /* R15  */
-  p->rsp = p->stack_top;
+  p->rsp = (uintptr_t)stack;
   debug("[create_task] Created task \"%s\" with pid %d. Info: RSP=0x%016x, RIP=0x%016x\n", p->name, p->pid, p->rsp, addr);
   return p;
 }
