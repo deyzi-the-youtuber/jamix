@@ -35,22 +35,46 @@ static void termios_init(struct termios * termios)
   termios->c_cc[VTIME] = 0;
 }
 
-#define IS_VALID_TTY(tty) \
-  (tty && tty->dev->device_type == DEVICE_TYPE_CHAR && tty->dev->device_class == DEVICE_CLASS_CONSOLE)
-
-size_t tty_write(struct tty_struct * tty, const uint8_t * buf, size_t count)
+size_t tty_read(struct tty_struct * tty, const uint8_t * buf, size_t count)
 {
-  if(!IS_VALID_TTY(tty))
-    return -EINVAL;
-
-  if(!tty->ops->write)
-    return -EIO;
+  if(!tty->ops->read)
+    return -ENXIO;
 
   if(!tty->dev)
   {
     printk("tty_write: device is null\n");
     return -ENODEV; 
   }
+
+  if(!IS_VALID_TTY(tty))
+    return -EINVAL;
+
+  char * str = (char *)malloc(count + 1);
+  size_t i;
+
+  if(!str)
+    return -ENOMEM;
+
+  ring_buffer_read(tty->read_q, str, count);
+
+  tty->dev->tty_output_intr(tty, i);
+  free(str);
+  return i;
+}
+
+size_t tty_write(struct tty_struct * tty, const uint8_t * buf, size_t count)
+{
+  if(!tty->ops->write)
+    return -ENXIO;
+
+  if(!tty->dev)
+  {
+    printk("tty_write: device is null\n");
+    return -ENODEV; 
+  }
+
+  if(!IS_VALID_TTY(tty))
+    return -EINVAL;
 
   char * str = (char *)malloc(count + 1);
   size_t i;
@@ -69,8 +93,12 @@ size_t tty_write(struct tty_struct * tty, const uint8_t * buf, size_t count)
 
 static void tty_release(struct tty_struct * tty)
 {
-  memset((void *)tty, 0, sizeof(struct tty_struct));
+  if(!tty)
+    return;
+  ring_buffer_release(tty->write_q);
+  ring_buffer_release(tty->read_q);
   free(tty);
+  memset((void *)tty, 0, sizeof(struct tty_struct));
 }
 
 int tty_create(int num, struct device * dev)
@@ -104,6 +132,7 @@ int tty_create(int num, struct device * dev)
   tty->dev = dev;
   ttys[num] = tty;
   return 0;
+
 ring_mem_err:
   tty_release(tty);
   return -ENOMEM;

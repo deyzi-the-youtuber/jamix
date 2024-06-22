@@ -100,6 +100,6 @@ static inline const char * errno_str(int code)
 }
 
 #define IS_ERR(errno) \
-  (errno < 0)
+  ((errno < 0) ? (errno < 0) : (errno * -1) < 0)
 
 #endif

@@ -1,6 +1,7 @@
 section .text
   global load_gdt
   global load_idt
+  global load_tss
 
 reload_segm:
    mov ax, 0x10 
@@ -21,4 +22,9 @@ load_gdt:
 load_idt:
   lidt [rdi]
   sti
+  ret
+
+load_tss:
+  mov rax, 0x28
+  ltr ax
   ret

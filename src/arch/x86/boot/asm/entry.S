@@ -5,7 +5,7 @@ section .text
 kernel_jump:
   cli
 
-  mov ax, 0
+  mov ax, 0x00
   mov ss, ax
   mov ds, ax 
   mov es, ax

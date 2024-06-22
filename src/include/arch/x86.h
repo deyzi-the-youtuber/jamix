@@ -2,6 +2,7 @@
 #define __ARCH_X86_H
 
 #include <stdint.h>
+#include <jamix/compiler.h>
 
 /*
   * Global Descriptor Table
@@ -15,13 +16,13 @@ struct segm_descriptor
   uint8_t  access;
   uint8_t  flags;
   uint8_t  base_high;
-}__attribute__((packed));
+}_packed_;
 
 struct gdtr
 {
   uint16_t limit;
   uintptr_t addr;
-}__attribute__((packed));
+}_packed_;
 
 /*
   * Interrupt Descriptor Table
@@ -36,13 +37,13 @@ struct interrupt_vector
   uint16_t  offset_mid;
   uint32_t  offset_high;
   uint32_t  reserved;
-}__attribute__((packed));
+}_packed_;
 
 struct idtr
 {
   uint16_t limit;
   uint64_t addr;
-}__attribute__((packed));
+}_packed_;
 
 /*
   * Interrupt Handlers
@@ -143,14 +144,36 @@ struct interrupt_frame
   uint64_t ds;
   uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
   uint64_t rbp, rdi, rsi, rbx, rdx, rcx, rax;
-  uint64_t intr, rip;
-  uint64_t cs, rflags, userrsp, ss, error_code;
+  uint64_t intr, error_code, rip, cs, eflags, rsp, ss;
 };
+
+/* task state segment */
+
+struct tss_descriptor
+{
+  uint32_t reserved0;
+  uint64_t rsp0;
+  uint64_t rsp1;
+  uint64_t rsp2;
+  uint32_t reserved1;
+  uint32_t reserved2;
+  uint64_t ist1;
+  uint64_t ist2;
+  uint64_t ist3;
+  uint64_t ist4;
+  uint64_t ist5;
+  uint64_t ist6;
+  uint64_t ist7;
+  uint32_t reserved3;
+  uint32_t reserved4;
+  uint16_t iopb;
+}_packed_;
 
 void exceptions_init(void);
 
 void arch_enable_ints(void);
 void arch_disable_ints(void);
 void interrupt_install(void (*handler)(struct interrupt_frame *), int intr);
+void tss_set_stack(uint64_t rsp);
 
 #endif

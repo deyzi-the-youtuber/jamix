@@ -73,6 +73,11 @@ void usleep(uint64_t ms)
   while (jiffies < end_jiffies);
 }
 
+uint64_t get_uptime(void)
+{
+  return DIV_ROUND_UP(jiffies, freq);
+}
+
 void timer_init(void)
 {
   pit_configure_hz(100);

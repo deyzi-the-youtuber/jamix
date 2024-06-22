@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 int create_callback(void (*cb_func)(void), uint64_t ms);
+uint64_t get_uptime(void);
+void usleep(uint64_t ms);
 
 void arch_early_init(void);
 void critical_enter(void);

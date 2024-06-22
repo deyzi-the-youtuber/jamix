@@ -11,6 +11,8 @@ void debug_irq(struct interrupt_frame * frame)
 void breakpoint_irq(struct interrupt_frame * frame)
 {
   printk("Received BREAKPOINT trap interrupt at RIP: 0x%016x. Halting kernel...\n", frame->rip);
+  printk("RSP: 0x%016x, RBP: 0x%016x\n", frame->rsp, frame->rbp);
+  printk("RDI: 0x%016x, RSI: 0x%016x\n", frame->rdi, frame->rsi);
   critical_enter();
   for(;;)
     asm volatile("hlt");

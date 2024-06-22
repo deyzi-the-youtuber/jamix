@@ -6,10 +6,6 @@
 #include <jamix/console.h>
 #include <lib/ring.h>
 
-extern uint32_t video_num_rows;
-extern uint32_t video_num_cols;
-extern struct console con;
-
 /* c_cc */
 #define VEOF 1
 #define VEOL 2
@@ -99,11 +95,14 @@ extern struct console con;
 
 #define NR_CONSOLES 8
 
+#define IS_VALID_TTY(tty) (tty && tty->dev->device_type == DEVICE_TYPE_CHAR && tty->dev->device_class == DEVICE_CLASS_CONSOLE)
+
 struct tty_struct;
 
 /* interface between driver and tty */
 struct tty_operations
 {
+  size_t (*read)(struct tty_struct * tty, const uint8_t * buf, size_t count);
   size_t (*write)(struct tty_struct * tty, const uint8_t * buf, size_t count);
 };
 

@@ -1,85 +1,132 @@
 #include <arch/ops.h>
+#include <arch/x86.h>
 #include <jamix/process.h>
 #include <jamix/printk.h>
 #include <jamix/errno.h>
 #include <jamix/tty.h>
 #include <jamix/mem.h>
+#include <jamix/debug.h>
 #include <jamix/compiler.h>
-#include <lib/list.h>
+
 #include <lib/common.h>
 #include <sys/types.h>
 #include <stdint.h>
 
-/*The kernel task does the scheduling for us */
+#pragma GCC diagnostic ignored "-Wmultichar" 
+
 struct task_struct * kernel_task;
-struct task_struct * current_task;
+struct task_struct * current;
 
-bool is_sched_enabled = false;
+static bool is_sched_enabled = false;
+int total_tasks = 0;
 
-void task_thing(void);
-void sched_add_queue(struct task_struct * p);
-extern void context_switch(struct task_struct * c, uint64_t next_esp);
-extern void sched_task_init(uint64_t esp);
+extern void context_switch(uint64_t old_rsp, uint64_t next_esp);
+extern void sched_tasking_enter(uint64_t rsp);
 
 bool sched_enabled(void)
 {
   return is_sched_enabled;
 }
 
-void sched_enable_set(bool status)
+struct task_struct * get_current_task(void)
 {
-  is_sched_enabled = status;
+  return current;
 }
 
 void schedule(void)
 {
-  if(current_task->cpu_ticks)
+  if(current->ticks_left != 0)
   {
-    current_task->cpu_ticks--;
+    current->ticks_left--;
     return;
   }
-  struct task_struct * new_task = current_task->next;
-  struct task_struct * old_task = current_task;
-  while(new_task->state != TASK_STATE_READY)
-  {
-    new_task = new_task->next;
-  }
-  debug("Task name: %s, Task RSP: 0x%016x\n", new_task->name, new_task->ctx->rsp);
-  current_task = new_task;
-  context_switch(old_task, new_task->ctx->rsp);
+  critical_enter();
+  struct task_struct * old = NULL;
+  /* reset cpu ticks left until reschedule */
+  current->ticks_left = current->time_quantum;
+  /* change out old task for the next one */
+  while(current->state != TASK_STATE_READY)
+    current = current->next;
+
+  old = current;
+  /* change task states */
+  old->state      = TASK_STATE_READY;
+  current->state  = TASK_STATE_RUNNING;
+  /* set tss stack */
+  tss_set_stack(current->rsp);
+  debug("[scheduler] SWITCH! old_rsp=0x%016x -> next_rsp=0x%016x\n", old->rsp, current->rsp);
+  context_switch(old->rsp, current->rsp);
 }
 
-void task_thing(void)
-{
-  is_sched_enabled = true;
-  printk("hi");
-  for(;;);
-}
-
-void sched_add_queue(struct task_struct * p)
+void sched_queue(struct task_struct * p)
 {
   critical_enter();
-  p->prev = current_task;
-  p->next = current_task->next;
-  p->next->prev = p;
-  current_task->next = p;
+  if(total_tasks > 1)
+  {
+    p->next = current->next;
+    p->next->prev = p;
+    p->prev = current;
+    current->next = p;
+  }
+  else
+  {
+    p->next = p;
+    p->prev = p;
+    current = p;
+  }
+  total_tasks++;
   critical_exit();
 }
 
-struct task_struct * get_current_task(void)
+struct task_struct * sched_proc_search(pid_t pid)
 {
-  return current_task;
+  struct task_struct * p = kernel_task;
+  while(p != kernel_task)
+  {
+    if(p->pid == pid)
+      return p;
+    p = p->next;
+  }
+  return NULL;
 }
 
-void sched_init(void)
+int kill(pid_t pid)
 {
-  kernel_task = create_kernel_task("task", (uintptr_t)task_thing);
+  if(pid == 0)
+  {
+    printk("Kernel task cannot be killed\n");
+    return -EPERM;
+  }
+  struct task_struct * p = sched_proc_search(pid);
+  if(!p)
+    return -ESRCH;
+  critical_enter();
+  task_release(p);
+  p->prev->next = p->next;
+  p->next->prev = p->prev;
+  p->state = TASK_STATE_UNKNOWN;
+  total_tasks--;
+  critical_exit();
+  return 0;
+}
+
+static void kernel_idle(void)
+{
+  is_sched_enabled = true;
+  printk("Fortnite Sigma Rizzler OSDever. This has to be the most Gen-Z Operating System kernel ever\n");
+  while(1);
+}
+
+void _noreturn_ sched_init(void)
+{
+  printk("Scheduler: Creating kernel task...\n");
+  memset(current, 0, sizeof(struct task_struct));
+  kernel_task = create_kernel_task("kernel", (uintptr_t)kernel_idle);
   if(!kernel_task)
-    panic("failed to create task\n");
-  /* make it the only one */
-  kernel_task->next = kernel_task;
-  kernel_task->prev = kernel_task;
-  current_task = kernel_task;
-  sched_task_init(current_task->ctx->rsp);
+    panic("Failed to start kernel late init\n");
+  sched_queue(kernel_task);
+  tss_set_stack(current->rsp);
+  sched_tasking_enter(current->rsp);
+  panic("You should not be here. Report this bug to the Jamix GitHub repository");
   unreachable;
 }

@@ -70,6 +70,7 @@ next:
               n++;
             }
             UNSET_FLAG(FLAG_FILL_ZERO);
+            width = 0; /* reset width */
           }
           PUTS(xs);
           break;

@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include "pic.h"
 
-static char * exceptions[32] = {
+static char exceptions[32][32] = {
   "Divide Error",
   "Debug",
   "NMI Interrupt",
@@ -80,23 +80,24 @@ void interrupt_handler(struct interrupt_frame * frame)
       critical_enter();
       if(is_console_enabled())
       {
+        printk("<DUMP>\n");
         if(sched_enabled())
         {
           printk("PID: %d (%s)\n", get_current_task()->pid, get_current_task()->name);
-          sched_enable_set(false);
         }
         /*
           * TODO: Fix this interrupt frame junk. It's all in the wrong order
           *
           */
-        printk("RIP: 0x%016x EFLAGS: 0x%08x: RSP: 0x%016x\n", frame->rip, frame->rflags, frame->userrsp);
+        printk("RIP: 0x%016x EFLAGS: 0x%08x: RSP: 0x%016x\n", frame->rip, frame->eflags, frame->rsp);
         printk("RAX: 0x%016x RBX: 0x%016x RCX: 0x%016x\n", frame->rax, frame->rbx, frame->rcx);
         printk("RDX: 0x%016x RDI: 0x%016x RSI: 0x%016x\n", frame->rdx, frame->rdi, frame->rsi);
         printk("RBP: 0x%016x R08: 0x%016x R09: 0x%016x\n", frame->rbp, frame->r8, frame->r9);
         printk("R10: 0x%016x R11: 0x%016x R12: 0x%016x\n", frame->r10, frame->r11, frame->r12);
         printk("R13: 0x%016x R14: 0x%016x R15: 0x%016x\n", frame->r13, frame->r14, frame->r15);
-        printk("SS: 0x%04x CS: 0x%04x ERR: 0x%08x\n", frame->ss, frame->cs, frame->error_code);
-        panic("Fatal exception: 0x%02x\n", frame->intr);
+        printk("SS: 0x%04x CS: 0x%04x ERR: 0x%016x UPTIME: %d seconds\n", frame->ss, frame->cs, frame->error_code, get_uptime());
+        printk("<\\DUMP>\n");
+        panic("Unhandled exception: 0x%02x (%s)\n", frame->intr, exceptions[frame->intr]);
       }
       for(;;)
         asm volatile("hlt");

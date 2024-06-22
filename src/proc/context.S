@@ -1,49 +1,74 @@
 section .text
   global context_switch
-  global sched_task_init
+  global sched_tasking_enter
+  extern tss_set_stack
+  extern task_stack_dump
 
-; rdi = new rsp
-sched_task_init:
-  ; Load task's stack
+; sched_tasking_enter:
+; arguments
+;   rdi = new rsp
+sched_tasking_enter:
+  cli
+  ; load task's stack
   mov rsp, rdi
-  ; Load task's registers
+  ; load task's registers
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop r11
+  pop r10
+  pop r9
+  pop r8
   pop rsi
   pop rdi
+  pop rbp
   pop rdx
   pop rcx
   pop rbx
   pop rax
-  ; This will leave out the task entry point, which will be popped into RIP
-  ret
+  iretq
 
-; rdi = current
-; rsi = next rsp
+; context_switch:
+; arguments:
+;   rdi = current context
+;   rsi = next rsp
 context_switch:
   cli
-  ; We should NOT add the following: "push rbp"
-  ; By doing so, we create a stack frame that could mess up the current processes stack.
-
-  ; Save old task's stack + registers
+  ; save old task's stack + registers
   push rax
   push rbx
   push rcx
   push rdx
+  push rbp
   push rdi
   push rsi
-  
-  mov rax, [rdi + 0x40]     ; current->ctx
-  mov [rax + 0x20], rsp     ; current->ctx.rsp = current_rsp
+  push r8
+  push r9
+  push r10
+  push r11
+  push r12
+  push r13
+  push r14
+  push r15
 
-  ; Now load new task's stack + registers
+  mov [rdi], rsp
+  ; now load new task's stack + registers
   mov rsp, rsi
-
+  ; restore all task registers
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop r11
+  pop r10
+  pop r9
+  pop r8
   pop rsi
   pop rdi
+  pop rbp
   pop rdx
   pop rcx
   pop rbx
   pop rax
-
-  sti
-
-  ret     ; Perform RET instruction to complete the context switch
+  iretq

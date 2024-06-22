@@ -3,6 +3,7 @@
 #include <jamix/device.h>
 #include <jamix/tty.h>
 #include <jamix/printk.h>
+#include <jamix/fs.h>
 #include <sys/io.h>
 #include <sys/types.h>
 #include <lib/common.h>
@@ -65,8 +66,10 @@ static inline bool serial_empty_transit(int port)
   return inb(serial_ports[port].port + 5) & STATUS_REG_THRE;
 }
 
-int serial_write(int port, const char str[], size_t sz)
+static int _serial_write(int port, const char * str, size_t sz)
 {
+  if(serial_ports[port].faulty)
+    return -EIO;
   for(int i = 0; i < sz; i++)
   {
     while (!serial_empty_transit(port));
@@ -84,6 +87,11 @@ int serial_write(int port, const char str[], size_t sz)
   return 0;
 }
 
+int serial_dev_write(struct file * file, void * buf, size_t sz)
+{
+  return _serial_write(0, (const char *)buf, sz);
+}
+
 void debug(const char * fmt, ...)
 {
   va_list ap;
@@ -91,6 +99,25 @@ void debug(const char * fmt, ...)
   char * buf = (char *)malloc(256);
   vsprintf(buf, (char *)fmt, ap);
   va_end(ap);
-  serial_write(0, buf, strlen(buf));
+  serial_dev_write(NULL, (void *)buf, strlen(buf));
   free(buf);
 }
+
+struct file_operations serial_dev_ops = {
+  .read = NULL,
+  .write = serial_dev_write,
+  .readdir = NULL,
+  .ioctl = NULL,
+  .open = NULL,
+  .close = NULL,
+};
+
+struct file serial_dev_file = {
+  .mode = 0,
+  .pos = 0,
+  .flags = 0,
+  .count = 0,
+  .name = "serial",
+  .path = "/dev/serial",
+  .ops = &serial_dev_ops
+};

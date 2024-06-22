@@ -36,6 +36,7 @@ static char * fbcon_startup(void)
   c.vc_num = 0;
   c.vc_size_row = c.vc_rows * 4 * 16;
   c.vc_def_color = 0x07;
+  c.vc_font = font_vga_8x16;
   c.vc_attr = c.vc_def_color;
   c.vc_has_color = true;
   c.vc_pos = 0x0000;                        /* sets cursor to (0, 0) */
@@ -96,6 +97,16 @@ static void fbcon_scroll(void)
   }
 }
 
+static inline void bs(void)
+{
+  if(fbcon_x)
+  {
+    fbcon_x--;
+    uint8_t * glyph = &c.vc_font.data[' ' * 16];
+    fbcon_print_glyph(fbcon_x, fbcon_y, glyph);
+  }
+}
+
 void fbcon_putc(char ch)
 {
   switch(ch)
@@ -108,11 +119,12 @@ void fbcon_putc(char ch)
     }
     case 8:
     {
+      bs();
       break;
     }
     default:
     {
-      uint8_t * glyph = &font8x16[ch * 16];
+      uint8_t * glyph = &c.vc_font.data[ch * 16];
       fbcon_print_glyph(fbcon_x, fbcon_y, glyph);
       fbcon_x++;
       break;
@@ -152,13 +164,13 @@ void fbcon_clear(void)
 
 static inline void fbcon_cursor_show(void)
 {
-  uint8_t * glyph = &font8x16[' ' * 16];
+  uint8_t * glyph = &c.vc_font.data[' ' * 16];
   fbcon_print_glyph(fbcon_x, fbcon_y, glyph);
 }
 
 static inline void fbcon_cursor_hide(void)
 {
-  uint8_t * glyph = &font8x16['_' * 16];
+  uint8_t * glyph = &c.vc_font.data['_' * 16];
   fbcon_print_glyph(fbcon_x, fbcon_y, glyph);
 }
 

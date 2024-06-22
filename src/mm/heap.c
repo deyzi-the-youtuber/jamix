@@ -1,13 +1,15 @@
 #include <stdint.h>
+#include <jamix/printk.h>
+#include <jamix/mem.h>
+#include <jamix/poison.h>
 #include <sys/types.h>
 #include <lib/common.h>
-#include <jamix/printk.h>
 
 #pragma GCC diagnostic ignored "-Wmultichar" 
 
 // I still dont really got the kernel memory map fully figured out
 //
-// [        2MB        ][                 8MB                 ]
+// [        2MB        ][                 3MB                 ][                        Reserved for user-mode stuff                        ]
 //
 // ^                    ^
 // Kernel Image         Kernel Heap                
@@ -24,8 +26,8 @@ struct heap_block
   struct heap_metadata metadata;
 };
 
-#define KERNEL_HEAP_MAX     0x800000
-#define KERNEL_HEAP_MAGIC   'heap'
+#define KERNEL_HEAP_MAX         0x300000
+#define KERNEL_HEAP_MAGIC       'heap'
 #define KERNEL_HEAP_ALIGNMENT   8
 
 static bool heap_initialized = false;
@@ -35,17 +37,12 @@ static uint64_t prev_alloc = 0;
 
 void heap_init(void * start)
 {
-  if(!heap_initialized)
-  {
-    heap_start = start;
-    prev_alloc = (uint64_t)heap_start;
-    heap_end = (uint64_t)(heap_start + KERNEL_HEAP_MAX);
-    // clear all memory in the kernel heap range
-    memset((void *)heap_start, 0, (heap_end - (uint64_t)heap_start));
-    heap_initialized = true;
-    return;
-  }
-  printk("WARNING: tried to re-init heap\n");
+  heap_start = start;
+  prev_alloc = (uint64_t)heap_start;
+  heap_end = (uint64_t)(heap_start + KERNEL_HEAP_MAX);
+  // clear all memory in the kernel heap range
+  // memset takes WAYYY to long, so i decreased the kernel heap size
+  memset((void *)heap_start, 0, (heap_end - (uint64_t)heap_start));
 }
 
 uint64_t heap_get_used(void)
@@ -123,21 +120,19 @@ static void heap_free(void * ptr)
 {
   /* do we have a valid pointer? */
   if(!ptr)
-  {
-    printk("WARNING: Freeing a null pointer\n");
     return;
-  }
+
   struct heap_block * b = get_block_from_ptr(ptr);
+
   if(b->magic != KERNEL_HEAP_MAGIC)
-  {
-    printk("WARNING: Block header is corrupted\n");
     return;
-  }
+  
   if(!b->metadata.used)
     return;
+
   // update variables
-  heap_used -= b->metadata.size + sizeof(struct heap_block);
   b->metadata.used = false;
+  heap_used -= b->metadata.size + sizeof(struct heap_block);
 }
 
 static void heap_merge_blocks(void)

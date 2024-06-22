@@ -23,7 +23,7 @@ int ring_buffer_write(struct ring_buffer * ring, uint8_t ch)
   return ring->tail;
 }
 
-int ring_buffer_read(struct ring_buffer * ring, uint8_t * buf, int len)
+int ring_buffer_read(struct ring_buffer * ring, uint8_t * buf, size_t len)
 {
   if(ring->head > ring->size)
     ring->head = 0;
@@ -33,4 +33,15 @@ int ring_buffer_read(struct ring_buffer * ring, uint8_t * buf, int len)
     buf++;
   }
   return ring->head;
+}
+
+void ring_buffer_release(struct ring_buffer * ring)
+{
+  if(ring)
+  {
+    if((void *)ring->buffer)
+    {
+      free((void *)ring->buffer);
+    }
+  }
 }

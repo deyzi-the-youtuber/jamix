@@ -21,6 +21,11 @@ uint32_t console_get_cols(void)
   return con.data->vc_cols;
 }
 
+struct console * get_console(void)
+{
+  return &con;
+}
+
 inline bool is_console_enabled(void)
 {
   return console_enabled;

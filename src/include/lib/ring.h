@@ -13,7 +13,8 @@ struct ring_buffer
 };
 
 int ring_buffer_init(struct ring_buffer * ring, size_t buffer_size);
+void ring_buffer_release(struct ring_buffer * ring);
 int ring_buffer_write(struct ring_buffer * ring, uint8_t ch);
-int ring_buffer_read(struct ring_buffer * ring, uint8_t * buf, int len);
+int ring_buffer_read(struct ring_buffer * ring, uint8_t * buf, size_t len);
 
 #endif
